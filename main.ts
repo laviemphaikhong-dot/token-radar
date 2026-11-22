@@ -1,4 +1,4 @@
-// A token-radar-01 entry (Node 22, standard library only), model radar-2.
+// A token-radar-01 entry (Node 22, standard library only), model radar-3.
 //
 // The program reads the sealed snapshot from /input/snapshot.json (or --input <file|dir>), scores the
 // pre-token universe with the fitted model in lib/model.ts (a size curve fitted on the snapshot's own
