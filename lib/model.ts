@@ -17,9 +17,15 @@
 //   maturity    = 0.6 + min(age_days, 1095) / 1095 x 0.4   (age_days unknown: 365)
 //   implied     = max(1, round(tvl x fitted multiple x tilt x growth x maturity))
 //
-// The fit is validated, not just stated: the comps are split by slug order into two halves, the
-// model is fitted on one half and scored on the other, and the dashboard publishes the held-out
-// median log error next to the house model's flat 0.25x on the same split. The board also carries
+// The fit is validated, not just stated: the comps are shuffled into two halves 200 times with a
+// seeded generator (so every run scores the same splits), the FULL board pipeline — size curve,
+// category tilt, growth and maturity multipliers, exactly as a board row is computed — is fitted
+// on one half and scored on the other, and the dashboard publishes the mean held-out median log
+// error next to the house model's flat 0.25x and the size curve alone on the same splits. The
+// launch odds are checked the same way, by Brier score against cohort alone and one flat rate.
+// Alternatives were tested on the same splits and left out because none beat this model beyond
+// noise: winsorising the comps, a robust Theil–Sen fit, a chain-count term, a quadratic size
+// term, retuned growth/maturity constants, and a TVL band in the odds. The board also carries
 // an implied range: the interquartile band of the fit's residuals, so a reader sees how wide the
 // honest uncertainty is instead of a false point.
 //
@@ -86,7 +92,7 @@ export const MODEL: ModelConstants = {
 };
 
 /** The model's version label: the dashboard names it and the rules quote it. */
-export const MODEL_VERSION = 'radar-2';
+export const MODEL_VERSION = 'radar-3';
 
 /** How many pre-token protocols beyond the watchlist the early radar carries, by implied value. */
 export const EARLY_ROWS = 160;
@@ -178,8 +184,18 @@ export interface FitSummary {
   band_low_factor: number;
   band_high_factor: number;
   heldout_flat_median_log_err: number;
+  heldout_size_median_log_err: number;
   heldout_model_median_log_err: number;
   heldout_rows: number;
+  heldout_splits: number;
+}
+
+/** The launch odds' held-out check: Brier scores over the same seeded splits, lower is better. */
+export interface OddsCheck {
+  brier_model: number;
+  brier_cohort_only: number;
+  brier_constant: number;
+  splits: number;
 }
 
 /** One listed-year cohort's launch base rate: how many of its protocols already record a token. */
@@ -204,6 +220,7 @@ export interface RadarData {
   rows: RadarRow[];
   live: LiveRow[];
   fit: FitSummary;
+  odds_check: OddsCheck;
   cohorts: CohortRate[];
   screened_out: ScreenedRow[];
   screened_out_count: number;
@@ -312,23 +329,106 @@ export function fittedMultiple(fit: Fit, p: SnapshotProtocol): number {
   return sizeMultiple(fit, p.tvl_usd) * (fit.tilts.get(p.category ?? '') ?? 1);
 }
 
+/** A tiny seeded generator (mulberry32): the validation splits are the same on every run. */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** A shuffled copy of `rows`, split in halves: the split every validation below shares. */
+function splitHalf<T>(rows: T[], rand: () => number): { train: T[]; test: T[] } {
+  const shuffled = [...rows];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    const tmp = shuffled[i]!;
+    shuffled[i] = shuffled[j]!;
+    shuffled[j] = tmp;
+  }
+  const half = Math.floor(shuffled.length / 2);
+  return { train: shuffled.slice(0, half), test: shuffled.slice(half) };
+}
+
+const VALIDATION_SPLITS = 200;
+const VALIDATION_SEED = 20261114;
+
 /**
- * The held-out evidence, computed the same way every run: the comps in slug order, the model
- * fitted on the even rows and scored on the odd ones, against the flat 0.25x on the same rows.
+ * The held-out evidence, computed the same way every run: 200 seeded splits of the comps, the
+ * full board pipeline fitted on one half and scored on the other, against the flat 0.25x and
+ * the size curve alone on the same rows. Each figure is the mean of the splits' median
+ * absolute log errors, so no single lucky split carries the claim.
  */
-export function heldOut(snapshot: Snapshot): { flat: number; model: number; rows: number } {
+export function validation(snapshot: Snapshot): { flat: number; size: number; model: number; rows: number; splits: number } {
   const comps = [...tradedComps(snapshot)].sort((a, b) => (a.slug < b.slug ? -1 : 1));
-  const train = comps.filter((_, i) => i % 2 === 0);
-  const test = comps.filter((_, i) => i % 2 === 1);
-  const sub: Snapshot = { ...snapshot, protocols: train };
-  const fit = fitModel(sub);
-  const errs = (pick: (p: SnapshotProtocol) => number): number[] =>
-    test.map((p) => Math.abs(Math.log(pick(p) / p.mcap_usd!))).sort((a, b) => a - b);
+  const rand = mulberry32(VALIDATION_SEED);
   const median = (v: number[]): number => v[Math.floor(v.length / 2)]!;
+  let flat = 0;
+  let size = 0;
+  let model = 0;
+  let rows = 0;
+  for (let s = 0; s < VALIDATION_SPLITS; s++) {
+    const { train, test } = splitHalf(comps, rand);
+    const fit = fitModel({ ...snapshot, protocols: train });
+    const errs = (pick: (p: SnapshotProtocol) => number): number[] =>
+      test.map((p) => Math.abs(Math.log(pick(p) / p.mcap_usd!))).sort((a, b) => a - b);
+    flat += median(errs((p) => 0.25 * p.tvl_usd));
+    size += median(errs((p) => sizeMultiple(fit, p.tvl_usd) * p.tvl_usd));
+    model += median(errs((p) => impliedValue(p, snapshot.as_of, MODEL, fit).implied));
+    rows = test.length;
+  }
   return {
-    flat: round3(median(errs((p) => 0.25 * p.tvl_usd))),
-    model: round3(median(errs((p) => fittedMultiple(fit, p) * p.tvl_usd))),
-    rows: test.length,
+    flat: round3(flat / VALIDATION_SPLITS),
+    size: round3(size / VALIDATION_SPLITS),
+    model: round3(model / VALIDATION_SPLITS),
+    rows,
+    splits: VALIDATION_SPLITS,
+  };
+}
+
+/**
+ * The launch odds' own held-out check, on seeded splits over every protocol: the model's
+ * Brier score for "already records a token", against the cohort rate alone and one flat rate
+ * for everyone. The odds are a cross-section base rate, and this is the honest measure of
+ * how much the category adjustment earns.
+ */
+export function oddsCheck(snapshot: Snapshot): OddsCheck {
+  const rand = mulberry32(VALIDATION_SEED + 1);
+  let model = 0;
+  let cohortOnly = 0;
+  let constant = 0;
+  for (let s = 0; s < VALIDATION_SPLITS; s++) {
+    const { train, test } = splitHalf(snapshot.protocols, rand);
+    const sub: Snapshot = { ...snapshot, protocols: train };
+    const cohorts = cohortRates(sub);
+    const shares = categoryShares(sub);
+    const overall = train.filter(hasTokenRecord).length / Math.max(1, train.length);
+    let m = 0;
+    let c = 0;
+    let k = 0;
+    for (const p of test) {
+      const y = hasTokenRecord(p) ? 1 : 0;
+      const mp = launchOdds(p, cohorts, shares) / 100;
+      const cohort = p.listed_at === null ? 'unknown' : p.listed_at.slice(0, 4);
+      const cell = cohorts.find((x) => x.cohort === cohort);
+      const cp = cell !== undefined && cell.total >= 10 ? cell.share_pct / 100 : overall;
+      m += (mp - y) ** 2;
+      c += (cp - y) ** 2;
+      k += (overall - y) ** 2;
+    }
+    model += m / test.length;
+    cohortOnly += c / test.length;
+    constant += k / test.length;
+  }
+  return {
+    brier_model: round4(model / VALIDATION_SPLITS),
+    brier_cohort_only: round4(cohortOnly / VALIDATION_SPLITS),
+    brier_constant: round4(constant / VALIDATION_SPLITS),
+    splits: VALIDATION_SPLITS,
   };
 }
 
@@ -624,12 +724,15 @@ function gasText(gas: number): string {
  */
 export function farmSteps(p: SnapshotProtocol, age: number | null): FarmStep[] {
   const { chain, gas } = farmChain(p);
-  const capital = capitalFor(p);
+  const usual = capitalFor(p);
+  const drop = finite(p.change_7d, 0);
+  const falling = drop <= -20;
+  const capital = falling ? Math.max(25, Math.round(usual / 2)) : usual;
   const hold = holdDaysFor(age);
   const action = actionFor(p, capital, chain);
   const weeks = Math.max(1, Math.round(hold / 7));
   const totalGas = gas * (2 + weeks);
-  return [
+  const steps: FarmStep[] = [
     {
       text: `Use a fresh wallet that holds only the funds you plan to farm, and keep its seed phrase offline.`,
       cost: `${gasText(gas)} of gas for the first transaction on ${chain}`,
@@ -661,6 +764,14 @@ export function farmSteps(p: SnapshotProtocol, age: number | null): FarmStep[] {
       time: '5 minutes',
     },
   ];
+  if (falling) {
+    steps.splice(2, 0, {
+      text: `Its TVL fell ${Math.abs(Math.round(drop))}% in the last seven days, so this plan starts at half size ($${capital} of the usual $${usual}): add the second half only after two weekly checks show the TVL holding.`,
+      cost: 'nothing to wait: the second half stays in the wallet',
+      time: '2 weeks of checks',
+    });
+  }
+  return steps;
 }
 
 /** The live-token protocols, by market cap, for the dashboard's Live token view. */
@@ -727,7 +838,8 @@ export function buildRadar(snapshot: Snapshot, model: ModelConstants = MODEL): {
   const fit = fitModel(snapshot);
   const cohorts = cohortRates(snapshot);
   const shares = categoryShares(snapshot);
-  const held = heldOut(snapshot);
+  const held = validation(snapshot);
+  const odds = oddsCheck(snapshot);
   const screened = screenedOut(snapshot);
   const screenedTotal = snapshot.protocols.filter((p) => isPreToken(p) && screenReason(p) !== null).length;
   const early = board.filter((r) => !snapshot.watchlist.includes(r.slug)).length;
@@ -754,9 +866,12 @@ export function buildRadar(snapshot: Snapshot, model: ModelConstants = MODEL): {
       band_low_factor: round3(fit.bandLow),
       band_high_factor: round3(fit.bandHigh),
       heldout_flat_median_log_err: held.flat,
+      heldout_size_median_log_err: held.size,
       heldout_model_median_log_err: held.model,
       heldout_rows: held.rows,
+      heldout_splits: held.splits,
     },
+    odds_check: odds,
     cohorts,
     screened_out: screened,
     screened_out_count: screenedTotal,
