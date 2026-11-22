@@ -110,6 +110,7 @@ a { color: var(--accent); }
   padding: var(--step-6) 0 var(--step-5);
 }
 .lede p { color: var(--muted); max-width: 62ch; margin-top: var(--step-2); }
+.lede p.evidence { color: var(--ink); border-left: 3px solid var(--accent); padding-left: var(--step-3); max-width: 68ch; }
 .facts {
   display: grid;
   gap: var(--step-2);

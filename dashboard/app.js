@@ -116,18 +116,25 @@
   }
   function farmSteps(p) {
     var fc = farmChain(p);
-    var capital = capitalFor(p);
+    var usual = capitalFor(p);
+    var drop = (typeof p.change_7d === 'number' && isFinite(p.change_7d)) ? p.change_7d : 0;
+    var falling = drop <= -20;
+    var capital = falling ? Math.max(25, Math.round(usual / 2)) : usual;
     var hold = holdDaysFor(p.age_days);
     var weeks = Math.max(1, Math.round(hold / 7));
     var totalGas = fc.gas * (2 + weeks);
-    return [
+    var steps = [
       { text: 'Use a fresh wallet that holds only the funds you plan to farm, and keep its seed phrase offline.', cost: gasText(fc.gas) + ' of gas for the first transaction on ' + fc.chain, time: '5 minutes' },
       { text: actionFor(p, capital, fc.chain), cost: '$' + capital + ' of capital and ' + gasText(fc.gas) + ' of gas on ' + fc.chain, time: '15 minutes to set up' },
       { text: 'Make one qualifying action each week on ' + fc.chain + ', such as a deposit, a borrow, a swap or a vote.', cost: gasText(fc.gas) + ' of gas a week', time: '10 minutes a week' },
       { text: 'Hold the position for at least ' + hold + ' days so the activity is counted in more than one snapshot.', cost: 'the $' + capital + ' stays in the position', time: hold + ' days' },
       { text: "Before you withdraw, open the protocol's own points or rewards page and claim only from the link it publishes.", cost: 'no fee to check, and never pay to claim', time: '10 minutes' },
       { text: 'Total plan: $' + capital + ' of capital plus about $' + Math.max(1, Math.round(totalGas)) + ' of gas over ' + weeks + ' weeks. Write the wallet, the dates and every transaction in a farm log so you can repeat the position or unwind it.', cost: 'nothing but the log', time: '5 minutes' }
-    ].map(stepText);
+    ];
+    if (falling) {
+      steps.splice(2, 0, { text: 'Its TVL fell ' + Math.abs(Math.round(drop)) + '% in the last seven days, so this plan starts at half size ($' + capital + ' of the usual $' + usual + '): add the second half only after two weekly checks show the TVL holding.', cost: 'nothing to wait: the second half stays in the wallet', time: '2 weeks of checks' });
+    }
+    return steps.map(stepText);
   }
 
   function readHash() {
@@ -189,7 +196,8 @@
     return el('section', { class: 'lede' },
       el('div', null,
         el('h1', { text: DATA.board_size + ' pre-token protocols, ranked by a fitted model' }),
-        el('p', { text: 'Every watchlist protocol is covered, and the early radar adds the strongest pre-token protocols the integrity screen passes. Implied value is fitted from the ' + DATA.fit.comps + ' tokens that already trade in this snapshot, with the range the comps themselves leave. Launch odds are the share of a protocol\u2019s cohort that already records a token. A model, not a promise.' })
+        el('p', { text: 'Every watchlist protocol is covered, and the early radar adds the strongest pre-token protocols the integrity screen passes. Implied value is fitted from the ' + DATA.fit.comps + ' tokens that already trade in this snapshot, with the range the comps themselves leave. Launch odds are the share of a protocol\u2019s cohort that already records a token. A model, not a promise.' }),
+        el('p', { class: 'evidence', text: 'Checked, not asserted: over ' + DATA.fit.heldout_splits + ' held-out splits of the traded comps, the full model\u2019s median log error is ' + DATA.fit.heldout_model_median_log_err + ', against ' + DATA.fit.heldout_flat_median_log_err + ' for a flat 0.25x and ' + DATA.fit.heldout_size_median_log_err + ' for size alone. Better, and still wide \u2014 which is why every value carries its range. Method and the alternatives tested and rejected are below the board.' })
       ),
       el('div', { class: 'facts' },
         el('div', { class: 'fact' }, el('span', { text: 'Watchlist covered' }), el('b', { text: DATA.watchlist_size + ' / ' + DATA.watchlist_size })),
@@ -357,9 +365,11 @@
       el('div', { class: 'formula' },
         'implied = round( tvl_usd x fitted multiple (size curve x category tilt) x (1 + clamp(change_7d, ' + m.growth_floor + ', ' + m.growth_cap + ') / 100 x ' + m.growth_weight + ') x (' + m.maturity_floor + ' + min(age_days, ' + m.maturity_days + ') / ' + m.maturity_days + ' x ' + m.maturity_range + ') )'
       ),
-      el('p', { text: 'Checked, not just stated: the comps are split in slug order, the model is fitted on one half and scored on the other ' + f.heldout_rows + ' tokens. Its held-out median log error is ' + f.heldout_model_median_log_err + ', against ' + f.heldout_flat_median_log_err + ' for the flat 0.25x multiple on the same rows: the fit is better, and still wide, which is why every value carries the comps\u2019 interquartile range (' + f.band_low_factor + 'x to ' + f.band_high_factor + 'x) instead of pretending to be a price.' }),
+      el('p', { text: 'Checked, not just stated: the comps are shuffled into halves ' + f.heldout_splits + ' times with a seeded generator, the full pipeline above is fitted on one half and scored on the other ' + f.heldout_rows + ', and the figures here are the means of the splits\u2019 median log errors. The full model scores ' + f.heldout_model_median_log_err + ', the size curve alone ' + f.heldout_size_median_log_err + ', and the flat 0.25x multiple ' + f.heldout_flat_median_log_err + ': the fit is better, and still wide, which is why every value carries the comps\u2019 interquartile range (' + f.band_low_factor + 'x to ' + f.band_high_factor + 'x) instead of pretending to be a price.' }),
+      el('p', { text: 'Tested on the same splits and left out, because none beat the model above beyond noise: winsorising the comps before the fit, a robust Theil\u2013Sen fit, a chain-count term, a quadratic size term, retuned growth and maturity constants, and a TVL band in the launch odds. A radar that only ships what survives its own splits is the point of the splits.' }),
       el('h3', { text: 'Launch odds are a base rate' }),
       el('p', { text: 'A row\u2019s launch odds are the share of its listed-year cohort that already records a token in this snapshot, adjusted by its category\u2019s share shrunk toward the average. Read them as how often protocols like this one have launched by now, not as a forecast for this one: a protocol still tokenless years after listing is, if anything, a slower launcher than its cohort\u2019s share suggests.' }),
+      el('p', { text: 'The odds are checked the same way: over ' + DATA.odds_check.splits + ' held-out splits of every protocol in the snapshot, their Brier score is ' + DATA.odds_check.brier_model + ', against ' + DATA.odds_check.brier_cohort_only + ' for the cohort rate alone and ' + DATA.odds_check.brier_constant + ' for one flat rate for everyone (lower is better). The category adjustment earns its place; nothing stronger survived the splits.' }),
       el('div', { class: 'table-wrap' },
         el('table', { class: 'cohorts' },
           el('thead', null, el('tr', null, el('th', { scope: 'col', text: 'Cohort' }), el('th', { scope: 'col', text: 'Already record a token' }), el('th', { scope: 'col', text: 'Share' }))),
