@@ -1,15 +1,18 @@
-// A token-radar-01 entry (Node 22, standard library only), model radar-3.
+// A token-radar-01 entry (Node 22, standard library only), model radar-4.
 //
 // The program reads the sealed snapshot from /input/snapshot.json (or --input <file|dir>), scores the
 // pre-token universe with the fitted model in lib/model.ts (a size curve fitted on the snapshot's own
-// traded tokens, shrunk category tilts, empirical launch odds, an integrity screen), writes the ranked
-// board to /output/board.json, and copies this repository's dashboard/ and screenshots/ to /output.
-// Last, it writes /output/dossier.json, the summary the judge reads, with the vendored library.
+// traded tokens — the only term that survives leave-one-out and walk-forward validation — empirical
+// launch odds with a peer-group second opinion, farm verdicts net of fees, an integrity screen),
+// writes the board, ranked by expected value, to /output/board.json, and copies this repository's
+// dashboard/ and screenshots/ to /output. Last, it writes /output/dossier.json, the summary the
+// judge reads, with the vendored library.
 //
 // The dashboard is a static page, no framework and no network: dashboard/index.html, dashboard/app.css
 // and dashboard/app.js read /output/data.js, which this program writes from the same board: the ranked
-// board with implied ranges and launch odds, a detail view and farm plan per protocol, the screened-out
-// list with its reasons, the live tokens, and the method with its held-out evidence.
+// board with implied ranges, launch odds, peer records and farm verdicts, a detail view and farm plan
+// per protocol, the screened-out list with its reasons, the live tokens, and the method with its
+// leave-one-out and walk-forward evidence, all computed by the program itself.
 //
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts --input ../input/snapshot.json
