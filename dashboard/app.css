@@ -1,4 +1,4 @@
-/* Token Radar's theme, model radar-2: five palette values, two radii, two type families and a
+/* Token Radar's theme, model radar-4: five palette values, two radii, two type families and a
    spacing scale. Nothing else is a colour, a radius or a font anywhere in the page. */
 :root {
   --canvas: #f2f5f3;
@@ -79,7 +79,7 @@ a { color: var(--accent); }
   border-bottom: 1px solid var(--border);
 }
 .brand { display: flex; align-items: center; gap: var(--step-3); }
-.mark {
+.brand .mark {
   width: 12px;
   height: 12px;
   border-radius: 50%;
@@ -102,34 +102,73 @@ a { color: var(--accent); }
 }
 .top-meta span { white-space: nowrap; }
 
-/* The lede: the claim on the left, the counts ruled off on the right. */
-.lede {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
-  gap: var(--step-6);
-  padding: var(--step-6) 0 var(--step-5);
+/* The lede: the claim, then the page's own self-check line under it. */
+.lede { padding: var(--step-4) 0 var(--step-2); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--step-3); }
+.lede .selfcheck { max-width: none; }
+.lede p { color: var(--muted); max-width: 78ch; }
+.selfcheck {
+  font-family: var(--font-num);
+  font-size: 12px;
+  color: var(--ink);
+  border-left: 3px solid var(--accent);
+  padding-left: var(--step-3);
+  max-width: none;
 }
-.lede p { color: var(--muted); max-width: 62ch; margin-top: var(--step-2); }
-.lede p.evidence { color: var(--ink); border-left: 3px solid var(--accent); padding-left: var(--step-3); max-width: 68ch; }
-.facts {
-  display: grid;
-  gap: var(--step-2);
-  align-content: start;
-  border-left: 1px solid var(--border);
-  padding-left: var(--step-5);
-}
-.fact { display: flex; align-items: baseline; justify-content: space-between; gap: var(--step-3); }
-.fact b { font-family: var(--font-num); font-size: 15px; font-weight: 500; }
-.fact span { color: var(--muted); font-size: 13px; }
 
-/* The controls row: search, category, the watchlist toggle and the three views. */
+/* The KPI strip: six cards of headline evidence, all read from data.js. */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--step-3);
+  padding: var(--step-4) 0;
+}
+.kpi {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  padding: var(--step-3) var(--step-4);
+  display: grid;
+  gap: 2px;
+  align-content: start;
+}
+.kpi span { color: var(--muted); font-size: 12px; }
+.kpi b { font-family: var(--font-num); font-size: 17px; font-weight: 600; }
+.kpi small { color: var(--muted); font-size: 12px; line-height: 1.4; }
+
+/* The accounting strip: one segmented bar, every protocol in exactly one group. */
+.acct { padding: var(--step-1) 0 var(--step-3); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--step-1); }
+.acct-title { font-size: 16px; }
+.acct-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--border);
+}
+.acct-bar i { display: block; height: 100%; }
+.acct-legend { display: flex; flex-wrap: wrap; gap: var(--step-1) var(--step-3); font-size: 12.5px; }
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: var(--step-2);
+}
+.s0 { background: var(--accent); }
+.s1 { background: var(--negative); }
+.s2 { background: var(--ink); }
+.s3 { background: var(--muted); }
+.s4 { background: color-mix(in srgb, var(--accent) 45%, var(--muted)); }
+.s5 { background: color-mix(in srgb, var(--negative) 45%, var(--muted)); }
+
+/* The controls row: search, category, chain, the three views, export, and the tier chips. */
+.controls-wrap { border-top: 1px solid var(--border); }
 .controls {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
   gap: var(--step-3);
-  padding: var(--step-4) 0;
-  border-top: 1px solid var(--border);
+  padding: var(--step-4) 0 var(--step-3);
 }
 .field { display: grid; gap: var(--step-1); }
 .field label { color: var(--muted); font-size: 12px; }
@@ -139,17 +178,9 @@ a { color: var(--accent); }
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--surface);
-  min-width: 180px;
+  min-width: 170px;
 }
-.field input { min-width: 280px; }
-.field.check {
-  display: flex;
-  align-items: center;
-  gap: var(--step-2);
-  min-height: 36px;
-}
-.field.check input { width: 16px; height: 16px; min-width: 0; accent-color: var(--accent); }
-.field.check label { color: var(--ink); font-size: 14px; }
+.field input { min-width: 260px; }
 .tabs {
   display: flex;
   gap: var(--step-1);
@@ -168,6 +199,26 @@ a { color: var(--accent); }
 }
 .tabs button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
 .count { margin-left: auto; color: var(--muted); font-size: 13px; align-self: center; }
+.tier-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--step-3);
+  padding-bottom: var(--step-4);
+}
+.chips { display: flex; flex-wrap: wrap; gap: var(--step-1); }
+.chips button {
+  min-height: 30px;
+  padding: 0 var(--step-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 13px;
+}
+.chips button b { font-weight: 500; color: var(--ink); }
+.chips button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.chips button[aria-pressed="true"] b { color: var(--surface); }
 
 /* Panels and the tables inside them. */
 .panel {
@@ -176,6 +227,8 @@ a { color: var(--accent); }
   border-radius: var(--radius-panel);
   overflow: hidden;
 }
+.panel.pad { margin-top: var(--step-4); padding: var(--step-5); display: grid; gap: var(--step-3); }
+.panel.pad h3 { margin-top: var(--step-3); }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td {
@@ -200,13 +253,14 @@ tbody tr { cursor: pointer; }
 tbody tr:hover { background: var(--surface); }
 tbody tr[data-selected="true"] { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
 .num { font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.ev { font-weight: 600; }
 .name { display: grid; gap: 2px; }
 .name b { font-weight: 600; }
 .sub { color: var(--muted); font-size: 12px; }
 .pos { color: var(--accent); }
 .neg { color: var(--negative); }
 
-/* The value bar, the odds bar, the watchlist badge and the token status dot. */
+/* The odds bar, the watchlist badge, the verdict pill and the token status dot. */
 .bar {
   width: 120px;
   height: 6px;
@@ -215,9 +269,8 @@ tbody tr[data-selected="true"] { background: color-mix(in srgb, var(--accent) 8%
   overflow: hidden;
 }
 .bar i { display: block; height: 100%; background: var(--accent); }
-.implied { display: flex; align-items: center; gap: var(--step-2); }
 .odds { display: flex; align-items: center; gap: var(--step-2); }
-.odds-bar { width: 64px; }
+.odds-bar { width: 56px; }
 .badge {
   display: inline-flex;
   align-items: center;
@@ -232,6 +285,20 @@ tbody tr[data-selected="true"] { background: color-mix(in srgb, var(--accent) 8%
   vertical-align: 2px;
   white-space: nowrap;
 }
+.verdict {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--step-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-family: var(--font-num);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.v-FARM { color: var(--accent); border-color: var(--accent); }
+.v-MARGINAL { color: var(--muted); }
+.v-SKIP { color: var(--negative); border-color: var(--negative); }
 .status {
   display: inline-flex;
   align-items: center;
@@ -249,9 +316,14 @@ tbody tr[data-selected="true"] { background: color-mix(in srgb, var(--accent) 8%
 }
 .reason { color: var(--muted); font-size: 13px; max-width: 560px; }
 
-/* The method panel under the board, and the empty state of a filter with no rows. */
-.model { margin-top: var(--step-4); padding: var(--step-5); display: grid; gap: var(--step-3); }
-.model h3 { margin-top: var(--step-3); }
+/* The evidence and method panels: term tables and reading notes. */
+.terms { font-size: 12px; line-height: 1.35; }
+.terms th, .terms td { padding: 3px var(--step-2); }
+.terms tbody tr { cursor: default; }
+.terms tr.kept td { font-weight: 600; }
+.mark { color: var(--muted); font-size: 12px; white-space: nowrap; }
+tr.kept .mark { color: var(--accent); }
+.note { color: var(--muted); max-width: 78ch; }
 .formula {
   font-family: var(--font-num);
   font-size: 13px;
@@ -261,6 +333,7 @@ tbody tr[data-selected="true"] { background: color-mix(in srgb, var(--accent) 8%
 }
 .cohorts { max-width: 520px; }
 .cohorts th, .cohorts td { padding: var(--step-2) var(--step-3); }
+.cohorts tbody tr { cursor: default; }
 .empty {
   padding: var(--step-7) var(--step-5);
   text-align: center;
@@ -322,16 +395,33 @@ tbody tr[data-selected="true"] { background: color-mix(in srgb, var(--accent) 8%
 .steps b { display: block; font-weight: 500; }
 .cost { color: var(--muted); font-size: 12px; font-family: var(--font-num); }
 
-/* One column on a narrow screen; the facts rule moves from the side to the top. */
+/* The evidence panel, compact: tighter type and padding, and on wide screens its
+   tables sit in two columns — value beside odds, range beside the reading notes —
+   so the board reaches the cover screenshot. DOM order is unchanged. */
+.panel.pad:not(.model) { padding: var(--step-3) var(--step-4); gap: 6px; margin-top: var(--step-3); }
+.panel.pad:not(.model) h2 { font-size: 18px; }
+.panel.pad:not(.model) h3 { margin-top: 0; font-size: 14px; }
+.panel.pad:not(.model) p { font-size: 12.5px; line-height: 1.42; }
+.panel.pad:not(.model) .note { font-size: 12px; }
+@media (min-width: 901px) {
+  .panel.pad:not(.model) { grid-template-columns: 1.15fr 0.85fr; column-gap: var(--step-5); }
+  .panel.pad:not(.model) > h2, .panel.pad:not(.model) > p:nth-child(2) { grid-column: 1 / -1; }
+  .panel.pad:not(.model) > .table-wrap:nth-child(3) { grid-column: 1; grid-row: 3 / span 3; }
+  .panel.pad:not(.model) > h3:nth-child(7) { grid-column: 2; grid-row: 3; }
+  .panel.pad:not(.model) > p:nth-child(8) { grid-column: 2; grid-row: 4; }
+  .panel.pad:not(.model) > .table-wrap:nth-child(9) { grid-column: 2; grid-row: 5; }
+  .panel.pad:not(.model) > h3:nth-child(4) { grid-column: 1; grid-row: 6; }
+  .panel.pad:not(.model) > p:nth-child(5) { grid-column: 1; grid-row: 7; }
+  .panel.pad:not(.model) > .table-wrap:nth-child(6) { grid-column: 1; grid-row: 8; }
+  .panel.pad:not(.model) > .note:nth-child(10) { grid-column: 2; grid-row: 6; }
+  .panel.pad:not(.model) > .note:nth-child(11) { grid-column: 2; grid-row: 7; }
+  .panel.pad:not(.model) > .note:nth-child(12) { grid-column: 2; grid-row: 8; }
+}
+
+/* Narrow screens: the KPI grid stacks, the shell tightens. */
 @media (max-width: 900px) {
   .shell { padding: var(--step-4); }
-  .lede { grid-template-columns: 1fr; gap: var(--step-4); }
-  .facts {
-    border-left: 0;
-    border-top: 1px solid var(--border);
-    padding-left: 0;
-    padding-top: var(--step-4);
-  }
+  .kpis { grid-template-columns: 1fr; }
   .field input { min-width: 0; width: 100%; }
 }
 

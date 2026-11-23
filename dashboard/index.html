@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Token Radar: pre-token protocols ranked by a fitted model, with launch odds</title>
+<title>Token Radar: pre-token protocols ranked by expected value, with launch odds and farm verdicts</title>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 <a class="skip" href="#board">Skip to the board</a>
 <main id="board" tabindex="-1" aria-busy="true"></main>
-<noscript><p>Token Radar (model radar-3): every protocol on the snapshot's watchlist, ranked by an implied value fitted from the snapshot's own traded tokens — a least-squares size curve of ln(market cap / TVL) on ln(TVL), a category tilt shrunk by n / (n + 10), a seven-day growth multiplier and a maturity multiplier — with launch odds as each listed-year cohort's already-tokenized share adjusted by category, an integrity screen that lists its rejects with reasons, and a costed farm plan per protocol. Validated over 200 seeded held-out splits of the traded comps: the full model's median log error beats the flat 0.25x multiple and the size curve alone; the figures ship in data.js beside the board. Enable JavaScript for the sortable board, filters and detail views.</p></noscript>
+<noscript><p>Token Radar (model radar-4): every protocol on the snapshot's watchlist, ranked by expected value — an implied value from a size curve fitted on the snapshot's own traded tokens (least-squares of ln(market cap / TVL) on ln(TVL); the only term that survives leave-one-out and walk-forward validation, whose full term-by-term tables ship in data.js) times launch odds (a listed-year cohort's already-tokenized share adjusted by category, with a peer-group reading tested and not adopted), plus a farm verdict net of fees at a $1,000 ticket under a stated 5% drop-share assumption, and an integrity screen that lists its rejects with reasons. Enable JavaScript for the sortable board, filters and detail views.</p></noscript>
 <script src="../data.js"></script>
 <script src="app.js"></script>
 </body>
